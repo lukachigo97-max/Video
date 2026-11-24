@@ -88,16 +88,45 @@ SHOTS = [
 ]
 
 
+def wb_gains(clip, strength=1.0, cap=1.25):
+    """Per-clip white balance: average the bright, low-saturation pixels (walls, sheets,
+    gloves) over a few frames and compute RGB gains that pull them to neutral grey."""
+    import tempfile
+    acc, n = [0, 0, 0], 0
+    src = os.path.join(PROXY, clip + ".mp4")
+    for t in (0.5, 1.5, 3.0):
+        with tempfile.NamedTemporaryFile(suffix=".png") as tf:
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(t), "-i", src,
+                                "-frames:v", "1", "-vf", "scale=270:480", tf.name])
+            if r.returncode or not os.path.getsize(tf.name):
+                continue
+            for q in Image.open(tf.name).convert("RGB").get_flattened_data():
+                if sum(q) > 540 and max(q) - min(q) < 60:
+                    acc = [a + c for a, c in zip(acc, q)]
+                    n += 1
+    if not n:
+        return 1.0, 1.0, 1.0
+    m = [a / n for a in acc]
+    grey = sum(m) / 3
+    g = [min(cap, max(1 / cap, 1 + strength * (grey / c - 1))) for c in m]
+    return tuple(g)
+
+
 def render_shots():
     parts = []
+    gains = {c: wb_gains(c) for c in {s[0] for s in SHOTS}}
+    for c, g in sorted(gains.items()):
+        print("wb", c, ["%.3f" % x for x in g])
     for i, (clip, ss, d) in enumerate(SHOTS):
         out = os.path.join(WORK, f"shot{i:02d}.mp4")
         # gentle push-in, light grade and a soft bloom for the "glow" look
+        rg, gg, bg = gains[clip]
         vf = (
+            f"colorchannelmixer=rr={rg:.4f}:gg={gg:.4f}:bb={bg:.4f},"
             f"scale=w='trunc(1080*(1+0.06*t/{d})/2)*2':h=-2:eval=frame:flags=bicubic,"
             f"crop=1080:1920,"
-            "eq=contrast=1.04:saturation=1.08:brightness=0.01,"
-            "split[a][b];[b]gblur=sigma=28[g];[a][g]blend=all_mode=screen:all_opacity=0.18,"
+            "eq=contrast=1.03:saturation=0.95,"
+            "split[a][b];[b]gblur=sigma=28[g];[a][g]blend=all_mode=screen:all_opacity=0.08,"
             "format=yuv420p"
         )
         subprocess.run(
