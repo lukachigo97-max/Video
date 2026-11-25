@@ -72,7 +72,7 @@ def question(i,dur):
     cm=layer("მითი",KA(800,50),(255,255,255,255)); cr=layer("რეალობა",KA(800,50),(255,255,255,255))
     hq=lk.height-80; top=960-hq/2-40
     for f in range(int(dur*FPS)):
-        t=f/FPS; c=bgframe(t,dur,1.02,1.07)
+        t=f/FPS*1.9; c=bgframe(f/FPS,dur,1.02,1.07)
         pill(c,(W/2-250,top-215,W/2+250,top-85),ease((t-0.05)/0.4),outline=(255,255,255),width=3)
         put(c,hk,W/2,top-168,t,0.05,dy=20); put(c,he,W/2,top-122,t,0.15,dy=20)
         put(c,lk,W/2,top+lk.height/2-40,t,0.3,dy=60)

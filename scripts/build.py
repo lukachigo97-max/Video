@@ -6,7 +6,7 @@ ENC=["-c:v","libx264","-preset","medium","-crf","17","-pix_fmt","yuv420p","-r","
 def sh(cmd): subprocess.run(cmd,shell=True,check=True,executable="/bin/bash")
 def card(args,outf,dur):
     sh(" ".join(GFX+args)+f" 2>/dev/null | ffmpeg -v error -y -f rawvideo -pix_fmt rgb24 -s 1080x1920 -r 30 -i - "+" ".join(ENC)+f" {outf}")
-QDUR=[4.6,5.0,5.6,6.0]; segs=[]
+QDUR=[3.0,3.0,3.0,3.0]; segs=[]
 card(["intro","3.0"],WK+"seg/00_intro.mp4",3.0); segs.append((WK+"seg/00_intro.mp4",3.0,False))
 def ts(t): h=int(t//3600); m=int(t%3600//60); s=t%60; return f"{h}:{m:02d}:{s:05.2f}"
 for i,q in enumerate(Q):
