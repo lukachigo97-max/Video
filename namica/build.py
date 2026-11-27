@@ -23,7 +23,7 @@ W, H, FPS, DUR = 1080, 1920, 30, 45.0
 
 # ------------------------------------------------------------------ presenter
 PRESENTER_NAME = "Luka Chigogidze"
-PRESENTER_IG = "@your_instagram"          # <- replace with the real handle
+PRESENTER_IG = "@dr.lukachigo"
 
 # ------------------------------------------------------------------ style
 PURPLE = (124, 84, 214)
