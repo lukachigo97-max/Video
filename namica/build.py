@@ -144,6 +144,24 @@ def view(img, cx, cy, s, size=(W, H), M=None):
                          resample=Image.Resampling.BICUBIC, fillcolor=(10, 10, 12))
 
 
+def view_after(k, cam, size=(W, H), under=None):
+    """After photo aligned onto the before framing; edges the rotation leaves empty come from `under`."""
+    af = view(IMG["a_" + k], *cam, size=size, M=ALIGN[k])
+    if under is None:
+        return af
+    m = Image.new("L", IMG["a_" + k].size, 255).transform(
+        size, Image.Transform.AFFINE, _coeffs(cam, size, ALIGN[k]), fillcolor=0)
+    m = m.filter(ImageFilter.MinFilter(9)).filter(ImageFilter.GaussianBlur(6))
+    return Image.composite(af, under, m)
+
+
+def _coeffs(cam, size, M):
+    cx, cy, s = cam
+    ox, oy = cx - s * size[0] / 2, cy - s * size[1] / 2
+    a, b, tx, ty = M
+    return (a * s, -b * s, a * ox - b * oy + tx, b * s, a * s, b * ox + a * oy + ty)
+
+
 def to_out(p, cam, size=(W, H)):
     cx, cy, s = cam
     return ((p[0] - cx) / s + size[0] / 2, (p[1] - cy) / s + size[1] / 2)
@@ -320,8 +338,8 @@ def badge(diam=150, name_size=34, ig_size=28):
     return im
 
 
-# ------------------------------------------------------------------ fat compartments (on b_lobl)
-TEX_O = (260, 260)
+# ------------------------------------------------------------------ fat compartments
+TEX_O = (120, 280)
 
 
 def make_fat_texture(w=1200, h=1500, seed=7):
@@ -346,47 +364,68 @@ def make_fat_texture(w=1200, h=1500, seed=7):
 
 FAT_TEX = make_fat_texture()
 
+# Compartments drawn on b_robl (right oblique), after the superficial fat pad anatomy.
 # name, outline points, aging shift (dx, dy), aging scale (sx, sy)
 COMPS = [
-    ("central forehead", [(470, 470), (560, 445), (600, 520), (592, 650), (545, 700), (482, 668), (456, 560)], (0, 10), (1, .98)),
-    ("middle forehead", [(625, 445), (780, 425), (900, 470), (935, 560), (885, 675), (765, 668), (645, 662), (612, 560)], (0, 14), (1, .97)),
-    ("lateral temporal-cheek", [(952, 480), (1040, 520), (1082, 640), (1110, 800), (1122, 980), (1112, 1150), (1092, 1280), (1045, 1330), (1004, 1250), (992, 1080), (982, 900), (944, 762), (928, 600)], (0, 24), (.97, 1.03)),
-    ("superior orbital", [(652, 748), (760, 732), (860, 760), (874, 800), (800, 792), (720, 793), (662, 798)], (0, 16), (1, .9)),
-    ("inferior orbital", [(672, 892), (760, 886), (812, 900), (792, 937), (720, 947), (672, 932)], (0, 22), (.95, .85)),
-    ("lateral orbital", [(832, 800), (902, 790), (942, 850), (932, 932), (872, 952), (832, 900)], (-2, 22), (.94, .92)),
-    ("medial cheek", [(612, 952), (702, 946), (782, 976), (800, 1060), (762, 1130), (682, 1122), (622, 1060)], (-6, 58), (.9, .92)),
-    ("middle cheek", [(812, 982), (902, 962), (962, 1042), (972, 1200), (932, 1282), (862, 1262), (822, 1152), (802, 1062)], (-6, 46), (.94, .97)),
-    ("nasolabial", [(577, 1102), (622, 1096), (662, 1152), (682, 1240), (662, 1282), (632, 1252), (592, 1182)], (-8, 40), (1.12, 1.03)),
-    ("superior jowl", [(692, 1292), (762, 1282), (822, 1322), (822, 1392), (762, 1412), (702, 1382), (672, 1332)], (0, 50), (1.06, 1.05)),
-    ("inferior jowl", [(642, 1412), (742, 1422), (812, 1442), (802, 1508), (722, 1528), (642, 1500), (612, 1452)], (0, 52), (1.1, 1.06)),
-    ("submandibular", [(832, 1422), (932, 1382), (1010, 1352), (1030, 1402), (962, 1462), (862, 1492)], (0, 44), (1.06, 1.05)),
+    ("central forehead", [(782, 400), (852, 392), (892, 450), (898, 580), (866, 640), (800, 642), (770, 560), (765, 460)], (0, 10), (1, .98)),
+    ("middle forehead", [(560, 425), (690, 395), (752, 420), (760, 560), (742, 630), (620, 642), (520, 622), (508, 520)], (0, 14), (1, .97)),
+    ("lateral temporal-cheek", [(420, 470), (470, 520), (446, 640), (414, 800), (404, 980), (412, 1150), (424, 1300), (384, 1392), (322, 1352), (292, 1200), (272, 1000), (282, 800), (322, 620), (362, 500)], (0, 24), (.97, 1.03)),
+    ("superior orbital", [(522, 706), (622, 696), (742, 702), (770, 730), (740, 768), (640, 778), (542, 768), (507, 740)], (0, 16), (1, .9)),
+    ("inferior orbital", [(642, 882), (732, 876), (792, 886), (782, 922), (702, 932), (642, 917)], (0, 22), (.95, .85)),
+    ("lateral orbital", [(482, 782), (582, 777), (620, 832), (602, 912), (532, 932), (472, 882)], (2, 22), (.94, .92)),
+    ("medial cheek", [(702, 952), (802, 942), (862, 992), (852, 1082), (782, 1122), (702, 1102), (672, 1022)], (6, 58), (.9, .92)),
+    ("middle cheek", [(522, 962), (642, 952), (690, 1012), (700, 1150), (652, 1232), (572, 1212), (512, 1102), (502, 1012)], (6, 46), (.94, .97)),
+    ("nasolabial", [(842, 1110), (874, 1122), (836, 1192), (774, 1262), (738, 1252), (762, 1182), (802, 1132)], (8, 40), (1.12, 1.03)),
+    ("superior jowl", [(622, 1282), (702, 1292), (722, 1342), (702, 1402), (632, 1402), (592, 1352)], (0, 50), (1.06, 1.05)),
+    ("inferior jowl", [(602, 1422), (722, 1422), (782, 1462), (762, 1532), (662, 1552), (592, 1512), (572, 1462)], (0, 52), (1.1, 1.06)),
+    ("submandibular", [(402, 1422), (522, 1442), (566, 1482), (550, 1540), (462, 1522), (372, 1482)], (0, 44), (1.06, 1.05)),
 ]
 for i, c in enumerate(COMPS):
     sm = catmull(c[1], closed=True, n=8)
     COMPS[i] = dict(name=c[0], smooth=sm, cen=sm.mean(0), d=np.array(c[2], float), s=np.array(c[3], float))
 
-# label groups: EN, KA, anchor compartment, label y (output px, anatomy camera)
+# label groups: EN, KA, anchor compartment, label y (output px, anatomy camera); column on the left
 LABELS = [
-    ("Forehead fat", "შუბლის ცხიმი", 1, 500),
-    ("Lateral temporal-cheek fat", "საფეთქელ-ლოყის ლატ. ცხიმი", 2, 650),
-    ("Orbital fat", "ორბიტული ცხიმი", 5, 800),
-    ("Middle cheek fat", "ლოყის შუა ცხიმი", 7, 960),
-    ("Medial cheek fat", "ლოყის მედიალური ცხიმი", 6, 1110),
-    ("Nasolabial fat", "ნაზოლაბიური ცხიმი", 8, 1260),
-    ("Jowl fat", "ბრილების ცხიმი", 10, 1410),
+    ("Forehead fat", "შუბლის ცხიმი", 1, 560),
+    ("Lateral temporal-cheek fat", "საფეთქელ-ლოყის ლატ. ცხიმი", 2, 715),
+    ("Orbital fat", "ორბიტული ცხიმი", 5, 865),
+    ("Middle cheek fat", "ლოყის შუა ცხიმი", 7, 1015),
+    ("Medial cheek fat", "ლოყის მედიალური ცხიმი", 6, 1165),
+    ("Nasolabial fat", "ნაზოლაბიური ცხიმი", 8, 1315),
+    ("Jowl fat", "ბრილების ცხიმი", 10, 1465),
 ]
+LABEL_X = 20
+
+# Marking from the reference sketch (5 lifting vectors fanning forward from one point in front
+# of the ear), traced in the sketch and mapped onto b_robl with an affine fit on eye, nose tip,
+# mouth corner and ear landmarks.
+_REF = np.array([(185, 18), (248, 65), (195, 100), (88, 45)], float)
+_DST = np.array([(712, 830), (1034, 1034), (718, 1271), (200, 1000)], float)
+_AFF = np.linalg.lstsq(np.hstack([_REF, np.ones((4, 1))]), _DST, rcond=None)[0]
+_ARROWS = [
+    [(115, 20), (120, 35), (140, 52), (160, 60), (185, 65)],
+    [(115, 20), (117, 42), (140, 65), (160, 73), (182, 78)],
+    [(115, 20), (116, 55), (135, 80), (155, 89), (180, 93)],
+    [(115, 20), (120, 75), (140, 100), (155, 110), (175, 116)],
+    [(115, 20), (111, 62), (122, 100), (145, 120), (172, 130)],
+]
+PATHS = [catmull([tuple(np.array([x, y, 1.0]) @ _AFF) for x, y in a], n=16) for a in _ARROWS]
+ORIGIN = PATHS[0][0]
 
 
 @lru_cache(None)
 def label_img(en, ka):
     return block(((en, F_BOLD, 25, (30, 20, 50), (255, 255, 255, 236), 14, 6, 0),
-                  (ka, F_KA, 20, (60, 40, 100), (255, 255, 255, 236), 14, 5, 0)), 400, align="r")
+                  (ka, F_KA, 20, (60, 40, 100), (255, 255, 255, 236), 14, 5, 0)), 400, align="l")
 
 
 def comp_state(c, age, lift):
     """age 0..1 descends; lift 0..1 brings it back (slightly above youthful position)."""
-    k = age - 1.08 * lift * age
+    k = age * (1 - lift)
     off = c["d"] * k
+    if lift > 0:   # repositioned up and back, toward the vectors' origin (superolateral)
+        v = ORIGIN - c["cen"]
+        off = off + v / np.linalg.norm(v) * 16 * lift * age
     sc = 1 + (c["s"] - 1) * max(k, 0)
     return off, sc
 
@@ -411,12 +450,12 @@ def comp_sprite(c, off, sc, alpha, glow=0.0):
     return Image.fromarray(np.dstack([col, a]).astype(np.uint8), "RGBA"), (int(x0), int(y0))
 
 
-ANAT_CAM = (850, 980, 1.0)
-BASE_LOBL = IMG["b_lobl"].convert("RGBA")
+ANAT_CAM = (480, 885, 1.1)
+BASE_PHOTO = IMG["b_robl"].convert("RGBA")
 
 
 def anatomy_frame(cam, age, lift, alphas, glow=0.0, photo=None):
-    base = (photo or BASE_LOBL).copy()
+    base = (photo or BASE_PHOTO).copy()
     for c, a in zip(COMPS, alphas):
         if a <= 0.01:
             continue
@@ -425,19 +464,6 @@ def anatomy_frame(cam, age, lift, alphas, glow=0.0, photo=None):
         sp, xy = comp_sprite(c, off, sc * pop, min(a, 1), glow)
         base.alpha_composite(sp, xy)
     return view(base.convert("RGB"), *cam).convert("RGBA")
-
-
-# threads (b_lobl coords): entry 0.5 cm in front of the hairline, on the vertical from the lateral canthus
-CANTHUS = (780, 845)
-HAIRLINE = (780, 392)
-ENTRY = (780, 418)
-VECTORS = [
-    [ENTRY, (850, 620), (886, 850), (832, 1020), (690, 1172)],
-    [ENTRY, (862, 620), (906, 862), (872, 1092), (732, 1322)],
-    [ENTRY, (872, 620), (926, 872), (916, 1162), (772, 1462)],
-    [ENTRY, (882, 620), (950, 882), (990, 1152), (950, 1424)],
-]
-PATHS = [catmull(v, n=16) for v in VECTORS]
 
 
 def path_part(P, frac):
@@ -451,19 +477,19 @@ def draw_thread(layer, Pout, width=5, barbs=True, tip=False):
         return
     glow_line(layer, pts_, width, (238, 232, 255, 245), glow=7, glow_a=170)
     d = ImageDraw.Draw(layer)
-    if barbs:
-        acc = 0.0
+    if barbs:   # fine barbs, flared slightly off the thread and pointing back toward its origin
+        acc, side = 0.0, 1
         for i in range(1, len(pts_)):
             (x0, y0), (x1, y1) = pts_[i - 1], pts_[i]
             L = math.hypot(x1 - x0, y1 - y0)
             acc += L
-            if acc > 26 and L > 0:
+            if acc > 16 and L > 0:
                 acc = 0
+                side = -side
                 ux, uy = (x1 - x0) / L, (y1 - y0) / L
-                for sgn in (1, -1):
-                    nx, ny = -uy * sgn, ux * sgn
-                    d.line([(x1, y1), (x1 - ux * 9 + nx * 8, y1 - uy * 9 + ny * 8)],
-                           fill=(255, 255, 255, 235), width=2)
+                nx, ny = -uy * side, ux * side
+                d.line([(x1 + nx * 1.5, y1 + ny * 1.5), (x1 - ux * 11 + nx * 5, y1 - uy * 11 + ny * 5)],
+                       fill=(255, 255, 255, 230), width=2)
     if tip:
         x, y = pts_[-1]
         g = Image.new("RGBA", layer.size, (0, 0, 0, 0))
@@ -562,17 +588,18 @@ def thread_macro(layer, P0, P1, width=26, phase=0.0):
     L = math.hypot(P1[0] - P0[0], P1[1] - P0[1])
     ux, uy = (P1[0] - P0[0]) / L, (P1[1] - P0[1]) / L
     nx, ny = -uy, ux
-    step = 70
-    n = int(L / step)
-    for i in range(n):
-        s = (i + (phase % 1)) * step
-        x, y = P0[0] + ux * s, P0[1] + uy * s
+    step = 46       # barbs: thin slivers cut into the thread, flared at a shallow angle
+    n = int(L / step) + 2
+    for i in range(-1, n):
+        s_ = (i + (phase % 1)) * step
+        x, y = P0[0] + ux * s_, P0[1] + uy * s_
         sg = 1 if i % 2 == 0 else -1
-        tipx = x - ux * 34 + nx * sg * (width * 0.5 + 22)
-        tipy = y - uy * 34 + ny * sg * (width * 0.5 + 22)
-        d.polygon([(x + nx * sg * width * 0.4, y + ny * sg * width * 0.4),
-                   (x + ux * 18 + nx * sg * width * 0.4, y + uy * 18 + ny * sg * width * 0.4),
-                   (tipx, tipy)], fill=(232, 224, 255, 240), outline=(170, 150, 230, 255))
+        r = width * 0.5
+        base1 = (x + nx * sg * r * 0.55, y + ny * sg * r * 0.55)
+        base2 = (x - ux * 30 + nx * sg * r * 0.75, y - uy * 30 + ny * sg * r * 0.75)
+        tip = (x - ux * 44 + nx * sg * (r + 13), y - uy * 44 + ny * sg * (r + 13))
+        d.polygon([base1, tip, base2], fill=(236, 230, 255, 245), outline=(160, 138, 226, 255))
+        d.line([base1, base2], fill=(150, 126, 220, 255), width=2)
 
 
 # ------------------------------------------------------------------ scenes
@@ -603,15 +630,18 @@ def sc_before(u):
     return fr
 
 
+WIPE_ORDER = ["robl", "rprof"]   # right side compares best
+
+
 def sc_wipe(u):
-    i = min(3, int(u / 1.5))
-    k = ORDER[i]
-    lu = u - i * 1.5
-    cam = photo_cam("b_" + k, zoom=1.0 + 0.06 * lu / 1.5)
+    i = min(1, int(u / 3.0))
+    k = WIPE_ORDER[i]
+    lu = u - i * 3.0
+    cam = photo_cam("b_" + k, zoom=1.0 + 0.07 * lu / 3.0)
     bf = view(IMG["b_" + k], *cam)
-    af = view(IMG["a_" + k], *cam, M=ALIGN[k])
+    af = view_after(k, cam, under=bf)
     left = PHOTOS["b_" + k]["left"]
-    p = ease_io(seg(lu, 0.2, 1.0))
+    p = ease_io(seg(lu, 0.4, 2.0))
     X = int(W * p) if left else int(W * (1 - p))
     m = Image.new("L", (W, H), 0)
     ImageDraw.Draw(m).rectangle((0, 0, X, H) if left else (X, 0, W, H), fill=255)
@@ -629,7 +659,7 @@ def sc_wipe(u):
 
 
 def sc_anat(u):
-    cam = cam_lerp((850, 1000, 1.08), ANAT_CAM, ease_io(u / 1.2))
+    cam = cam_lerp((500, 900, 1.2), ANAT_CAM, ease_io(u / 1.2))
     alphas = [ease_out((u - 0.5 - j * 0.22) / 0.35) for j in range(len(COMPS))]
     fr = anatomy_frame(cam, 0, 0, alphas)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -639,11 +669,11 @@ def sc_anat(u):
         if a <= 0:
             continue
         im = label_img(en, ka)
-        x = 1060 - im.width
+        x = LABEL_X
         cx_, cy_ = to_out(COMPS[ci]["cen"], cam)
-        d.line([(x, ly + im.height / 2), (cx_, cy_)], fill=(255, 255, 255, int(210 * a)), width=2)
+        d.line([(x + im.width, ly + im.height / 2), (cx_, cy_)], fill=(255, 255, 255, int(210 * a)), width=2)
         d.ellipse((cx_ - 6, cy_ - 6, cx_ + 6, cy_ + 6), fill=(255, 255, 255, int(255 * a)))
-        paste(lay, im, x + (1 - a) * 30, ly, a)
+        paste(lay, im, x - (1 - a) * 30, ly, a)
     fr.alpha_composite(lay)
     put_center(fr, cap("Facial fat sits in separate compartments",
                        "სახის ცხიმი ცალკეულ კომპარტმენტებშია განლაგებული"), 130, ease_out(u / 0.4), 20)
@@ -657,10 +687,10 @@ def labels_fade(fr, cam, a, age=0, lift=0):
     d = ImageDraw.Draw(lay)
     for en, ka, ci, ly in LABELS:
         im = label_img(en, ka)
-        x = 1060 - im.width
+        x = LABEL_X
         off, _ = comp_state(COMPS[ci], age, lift)
         cx_, cy_ = to_out(COMPS[ci]["cen"] + off, cam)
-        d.line([(x, ly + im.height / 2), (cx_, cy_)], fill=(255, 255, 255, int(210 * a)), width=2)
+        d.line([(x + im.width, ly + im.height / 2), (cx_, cy_)], fill=(255, 255, 255, int(210 * a)), width=2)
         d.ellipse((cx_ - 6, cy_ - 6, cx_ + 6, cy_ + 6), fill=(255, 255, 255, int(255 * a)))
         paste(lay, im, x, ly, a)
     fr.alpha_composite(lay)
@@ -695,86 +725,46 @@ def sc_age(u):
     return fr
 
 
-MARK_CAM = (880, 640, 0.56)
+def arrow_head(d, P, size, color):
+    (x0, y0), (x1, y1) = P[-4], P[-1]
+    ang = math.atan2(y1 - y0, x1 - x0)
+    tip = (x1 + math.cos(ang) * size * 0.6, y1 + math.sin(ang) * size * 0.6)
+    d.polygon([tip, (x1 + math.cos(ang + 2.5) * size, y1 + math.sin(ang + 2.5) * size),
+               (x1 + math.cos(ang - 2.5) * size, y1 + math.sin(ang - 2.5) * size)], fill=color)
 
 
 def sc_mark(u):
-    zoom_out = ease_io(seg(u, 2.4, 3.6))
-    cam = cam_lerp(cam_lerp(ANAT_CAM, MARK_CAM, ease_io(u / 0.7)), ANAT_CAM, zoom_out)
+    cam = ANAT_CAM
     fr = anatomy_frame(cam, 1, 0, [0.42] * len(COMPS))
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(lay)
-    c = to_out(CANTHUS, cam)
-    hl = to_out(HAIRLINE, cam)
-    en = to_out(ENTRY, cam)
-    lab_a = 1 - zoom_out
-    # canthus dot
-    a1 = ease_out((u - 0.5) / 0.3)
-    if a1 > 0:
-        d.ellipse((c[0] - 9, c[1] - 9, c[0] + 9, c[1] + 9), fill=GOLD + (int(255 * a1),), outline=WHITE, width=2)
-    # vertical line up to hairline
-    g = ease_io(seg(u, 0.7, 1.4))
-    if g > 0:
-        dashed(d, [c, (c[0], lerp(c[1], hl[1], g))], GOLD + (240,), 4, 18, 10)
-    a2 = ease_out((u - 1.3) / 0.3)
-    if a2 > 0:
-        d.line([(hl[0] - 70, hl[1]), (hl[0] + 70, hl[1])], fill=(255, 255, 255, int(230 * a2)), width=3)
-    a3 = ease_out((u - 1.6) / 0.3)
-    if a3 > 0:
-        # 0.5 cm bracket
-        bx = hl[0] - 34
-        d.line([(bx, hl[1]), (bx, en[1])], fill=(255, 255, 255, int(255 * a3)), width=3)
-        for yy in (hl[1], en[1]):
-            d.line([(bx - 9, yy), (bx + 9, yy)], fill=(255, 255, 255, int(255 * a3)), width=3)
-        pr = 1 + 0.25 * math.sin(u * 7)
-        g2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(g2).ellipse((en[0] - 26 * pr, en[1] - 26 * pr, en[0] + 26 * pr, en[1] + 26 * pr),
-                                   fill=PURPLE + (int(200 * a3),))
-        lay.alpha_composite(g2.filter(ImageFilter.GaussianBlur(8)))
-        d.ellipse((en[0] - 11, en[1] - 11, en[0] + 11, en[1] + 11), fill=WHITE, outline=PURPLE, width=4)
-    # vectors (dashed) fan out while zooming out
-    vf = ease_io(seg(u, 2.6, 4.0))
-    if vf > 0:
-        for P in PATHS:
-            Pp = [to_out(p, cam) for p in path_part(P, vf)]
-            dashed(d, Pp, (255, 255, 255, 220), 3, 12, 9)
-            if vf > 0.98:
-                x, y = Pp[-1]
-                d.ellipse((x - 7, y - 7, x + 7, y + 7), fill=PURPLE + (255,), outline=WHITE, width=2)
+    for j, P in enumerate(PATHS):
+        prog = ease_io(seg(u, 0.4 + j * 0.42, 1.3 + j * 0.42))
+        if prog <= 0:
+            continue
+        Pp = [to_out(p, cam) for p in path_part(P, prog)]
+        glow_line(lay, Pp, 6, (255, 255, 255, 250), glow=6, glow_a=140)
+        if len(Pp) >= 4:
+            arrow_head(ImageDraw.Draw(lay), Pp, 22, (255, 255, 255, 250))
     fr.alpha_composite(lay)
-    if lab_a > 0:
-        if a1 > 0:
-            im = block((("Lateral canthus", F_BOLD, 28, WHITE, (20, 12, 40, 210), 12, 6, 0),
-                        ("თვალის გარე კუთხე", F_KA, 23, WHITE, (20, 12, 40, 210), 12, 5, 0)), 500, "l")
-            paste(fr, im, c[0] + 40, c[1] - 10, a1 * lab_a)
-        if a2 > 0:
-            im = block((("Hairline", F_BOLD, 28, WHITE, (20, 12, 40, 210), 12, 6, 0),
-                        ("თმის ზრდის ხაზი", F_KA, 23, WHITE, (20, 12, 40, 210), 12, 5, 0)), 500, "l")
-            paste(fr, im, hl[0] + 90, hl[1] - im.height - 6, a2 * lab_a)
-        if a3 > 0:
-            im = block((("ENTRY POINT · 0.5 cm", F_BLACK, 30, WHITE, PURPLE + (240,), 12, 6, 0),
-                        ("შესვლის წერტილი · 0,5 სმ", F_KA_B, 24, WHITE, PURPLE_D + (230,), 12, 5, 0)), 600, "l")
-            paste(fr, im, en[0] + 46, en[1] - 6, a3 * lab_a)
-    put_center(fr, cap("Entry point: vertical line from the lateral canthus, 0.5 cm before the hairline",
-                       "შესვლის წერტილი: თვალის გარე კუთხიდან ვერტიკალზე, თმის ხაზამდე 0,5 სმ-ით ადრე",
-                       38, 29), 130, ease_out(u / 0.4), 20)
+    put_center(fr, cap("Marking the lifting vectors", "ლიფტინგის ვექტორების მარკირება"), 130,
+               ease_out(u / 0.4), 20)
     return fr
 
 
-BASE_ALOBL = None
+BASE_AFTER = None
 
 
 def sc_thread(u):
-    global BASE_ALOBL
+    global BASE_AFTER
     cam = ANAT_CAM
     lift = ease_io(seg(u, 3.0, 4.6))
     xf = ease(seg(u, 4.5, 5.6))
     alphas = [lerp(0.42, 0.9, ease(seg(u, 2.6, 3.2))) * (1 - xf)] * len(COMPS)
     fr = anatomy_frame(cam, 1, lift, alphas, glow=0.25 * math.sin(math.pi * seg(u, 3.0, 4.6)))
     if xf > 0:
-        if BASE_ALOBL is None:
-            BASE_ALOBL = view(IMG["a_lobl"], *cam, M=ALIGN["lobl"]).convert("RGBA")
-        fr = Image.blend(fr, BASE_ALOBL, xf)
+        if BASE_AFTER is None:
+            BASE_AFTER = view_after("robl", cam, under=view(IMG["b_robl"], *cam)).convert("RGBA")
+        fr = Image.blend(fr, BASE_AFTER, xf)
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ta = 1 - xf
     for j, P in enumerate(PATHS):
@@ -801,8 +791,8 @@ def sc_thread(u):
         lay.putalpha(lay.getchannel("A").point(lambda v: int(v * ta)))
     fr.alpha_composite(lay)
     if u < 4.6:
-        put_center(fr, cap("Cogged NAMICA threads lift the compartments back into place",
-                           "NAMICA-ს კბილანებიანი ძაფები კომპარტმენტებს ადგილზე აბრუნებს"), 130,
+        put_center(fr, cap("Barbed NAMICA threads lift the compartments back into place",
+                           "NAMICA-ს ბარბებიანი ძაფები კომპარტმენტებს ადგილზე აბრუნებს"), 130,
                    ease_out(u / 0.4) * (1 - ease(seg(u, 4.3, 4.6))), 20)
     else:
         put_center(fr, tag("AFTER", "შემდეგ"), 1500, ease_out((u - 4.6) / 0.4))
@@ -830,7 +820,7 @@ def sc_macro(u):
         thread_macro(lay, (P0[0] + ux * 540, P0[1] + uy * 540), (P0[0] + ux * 900, P0[1] + uy * 900), 26, -mv / 70)
         fr.alpha_composite(lay)
         t_en, t_ka = "LIFTING", "ლიფტინგი"
-        s_en, s_ka = "Cogs grip and lift the tissue instantly", "კბილანები ქსოვილს მყისიერად ზემოთ სწევს"
+        s_en, s_ka = "Barbs grip and lift the tissue instantly", "ბარბები ქსოვილს ეჭიდება და მყისიერად სწევს ზემოთ"
     elif sub == 1:    # BIOSTIMULATION
         sphere_field(fr, u, drift=(30, 0), dolly=u * 80)
         lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -906,9 +896,10 @@ def sc_macro(u):
 def final_panels():
     cw, ch = 516, 1000
     cam = ANAT_CAM
-    cx, cy, s = 760, 1000, 1.55
-    b = view(IMG["b_lobl"], cx, cy, s, (cw, ch)).convert("RGBA")
-    a = view(IMG["a_lobl"], cx, cy, s, (cw, ch), M=ALIGN["lobl"]).convert("RGBA")
+    cx, cy, s = 660, 1000, 1.6
+    bv = view(IMG["b_robl"], cx, cy, s, (cw, ch))
+    b = bv.convert("RGBA")
+    a = view_after("robl", (cx, cy, s), (cw, ch), under=bv).convert("RGBA")
     m = Image.new("L", (cw, ch), 0)
     ImageDraw.Draw(m).rounded_rectangle((0, 0, cw - 1, ch - 1), radius=28, fill=255)
     out = []
