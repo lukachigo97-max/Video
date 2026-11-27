@@ -576,7 +576,7 @@ def sphere_field(dst, t, drift=(0, 0), dolly=0.0, focus=1100):
         y = s["y"] + (s["vy"] + drift[1]) * t
         f = 900 / z
         items.append((z, W / 2 + x * f, H / 2 + y * f, 2 * s["r"] * f,
-                      abs(1 / z - 1 / focus) * 26000, s["k"]))
+                      0, s["k"]))   # all spheres kept sharp
     for z, x, y, d, b, k in sorted(items, key=lambda i: -i[0]):
         put_sphere(dst, SPH[k], x, y, d, b)
 
@@ -603,14 +603,15 @@ def thread_macro(layer, P0, P1, width=26, phase=0.0):
 
 
 # ------------------------------------------------------------------ scenes
+TAG_Y = 1815               # BEFORE/AFTER tags sit below the chin, under the presenter badge line
 T_BEFORE = (0.0, 5.6)
 T_WIPE = (5.6, 11.6)
 T_ANAT = (11.6, 16.6)
 T_AGE = (16.6, 21.6)
 T_MARK = (21.6, 26.0)
-T_THREAD = (26.0, 31.6)
-T_MACRO = (31.6, 38.0)
-T_FINAL = (38.0, 45.0)
+T_THREAD = (26.0, 33.1)   # ends on a 1.5 s hold of the after photo
+T_MACRO = (33.1, 39.5)
+T_FINAL = (39.5, 45.0)
 
 
 def sc_before(u):
@@ -626,7 +627,7 @@ def sc_before(u):
         fr = Image.blend(prev, fr, ease(lu / 0.25))
     put_center(fr, title("NON-SURGICAL LIFT", "არაქირურგიული ლიფტინგი"), 150, ease_out(u / 0.5), 30)
     put_center(fr, cap("with NAMICA threads", "NAMICA-ს ძაფებით", 38, 30), 420, ease_out((u - 0.3) / 0.5), 20)
-    put_center(fr, tag("BEFORE", "მანამდე"), 1500, ease_out((u - 0.2) / 0.4))
+    put_center(fr, tag("BEFORE", "მანამდე"), TAG_Y, ease_out((u - 0.2) / 0.4))
     return fr
 
 
@@ -654,7 +655,7 @@ def sc_wipe(u):
                ease_out(u / 0.4), 20)
     after = p > 0.5
     put_center(fr, tag("AFTER", "შემდეგ") if after else tag("BEFORE", "მანამდე", (70, 60, 90)),
-               1500)
+               TAG_Y)
     return fr
 
 
@@ -763,8 +764,20 @@ def sc_thread(u):
     fr = anatomy_frame(cam, 1, lift, alphas, glow=0.25 * math.sin(math.pi * seg(u, 3.0, 4.6)))
     if xf > 0:
         if BASE_AFTER is None:
-            BASE_AFTER = view_after("robl", cam, under=view(IMG["b_robl"], *cam)).convert("RGBA")
-        fr = Image.blend(fr, BASE_AFTER, xf)
+            BASE_AFTER = view_after("robl", cam, under=Image.new("RGB", (W, H), (10, 10, 12))).convert("RGBA")
+        h = ease_io(seg(u, 5.6, 6.5))
+        if h <= 0:
+            fr = Image.blend(fr, BASE_AFTER, xf)
+        else:   # hold: ease from the aligned position into the after photo's own full-frame framing
+            c0 = _coeffs(cam, (W, H), ALIGN["robl"])
+            ncx, ncy, ns = photo_cam("a_robl", zoom=1.0 + 0.04 * seg(u, 5.6, 7.1))
+            c1 = (ns, 0, ncx - ns * W / 2, 0, ns, ncy - ns * H / 2)
+            c = tuple(lerp(a, b, h) for a, b in zip(c0, c1))
+            src = IMG["a_robl"]
+            af = src.transform((W, H), Image.Transform.AFFINE, c, resample=Image.Resampling.BICUBIC)
+            m = Image.new("L", src.size, 255).transform((W, H), Image.Transform.AFFINE, c, fillcolor=0)
+            m = m.filter(ImageFilter.MinFilter(9)).filter(ImageFilter.GaussianBlur(6))
+            fr = Image.composite(af, BASE_AFTER.convert("RGB"), m).convert("RGBA")
     lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ta = 1 - xf
     for j, P in enumerate(PATHS):
@@ -795,7 +808,7 @@ def sc_thread(u):
                            "NAMICA-ს ბარბებიანი ძაფები კომპარტმენტებს ადგილზე აბრუნებს"), 130,
                    ease_out(u / 0.4) * (1 - ease(seg(u, 4.3, 4.6))), 20)
     else:
-        put_center(fr, tag("AFTER", "შემდეგ"), 1500, ease_out((u - 4.6) / 0.4))
+        put_center(fr, tag("AFTER", "შემდეგ"), TAG_Y, ease_out((u - 4.6) / 0.4))
     return fr
 
 
@@ -882,7 +895,7 @@ def sc_macro(u):
         thread_macro(lay, P0, P1, 26, phase=u * 0.3)
         fr.alpha_composite(lay)
         for k in range(6):
-            put_sphere(fr, BUB, 120 + k * 190, 1500 - (lu * 120 + k * 230) % 1300, 180 + k * 25, 14, 0.7)
+            put_sphere(fr, BUB, 120 + k * 190, 1500 - (lu * 120 + k * 230) % 1300, 180 + k * 25, 0, 0.7)
         t_en, t_ka = "HYDRATION", "დატენიანება"
         s_en, s_ka = "Hyaluronic acid inside the thread hydrates the skin", "ძაფში არსებული ჰიალურონის მჟავა კანს ატენიანებს"
     a = ease_out(lu / 0.35) * (1 - ease(seg(lu, 1.95, 2.13)) if sub < 2 else ease_out(lu / 0.35))
@@ -921,11 +934,11 @@ def sc_final(u):
     paste(fr, a, 548, 330 + (1 - k2) * 60, k2)
     put_center(fr, title("THE RESULT", "შედეგი"), 130, ease_out(u / 0.5), 30)
     tb, ta = tag("BEFORE", "მანამდე", (70, 60, 90)), tag("AFTER", "შემდეგ")
-    paste(fr, tb, 16 + (516 - tb.width) / 2, 1250, k1)
-    paste(fr, ta, 548 + (516 - ta.width) / 2, 1250, k2)
+    paste(fr, tb, 16 + (516 - tb.width) / 2, 1346, k1)
+    paste(fr, ta, 548 + (516 - ta.width) / 2, 1346, k2)
     bd = badge(190, 42, 34)
-    paste(fr, bd, (W - bd.width) / 2, 1380, ease_out((u - 0.8) / 0.5))
-    put_center(fr, cap("Book your consultation", "დაჯავშნე კონსულტაცია", 44, 34), 1620,
+    paste(fr, bd, (W - bd.width) / 2, 1425, ease_out((u - 0.8) / 0.5))
+    put_center(fr, cap("Book your consultation", "დაჯავშნე კონსულტაცია", 44, 34), 1665,
                ease_out((u - 1.2) / 0.5), 20)
     return fr
 

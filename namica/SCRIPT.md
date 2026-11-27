@@ -11,9 +11,9 @@ in and adjust the cuts to fit your pacing.
 | 11.6–16.6 | Fat compartments appear, labelled | Facial fat sits in separate compartments, held in place by ligaments. | სახის ცხიმი ცალკეულ კომპარტმენტებშია განლაგებული, რომლებსაც იოგები აფიქსირებს. |
 | 16.6–21.6 | Age 35 → 65, compartments descend | With age they lose volume and slide down, creating jowls and deeper folds. | ასაკთან ერთად ისინი მოცულობას კარგავენ და ქვემოთ ინაცვლებენ — ჩნდება ბრილები და ღრმა ნაოჭები. |
 | 21.6–26.0 | Lifting vectors drawn on her face (your marking) | Next, we mark the lifting vectors on the face. | შემდეგ სახეზე ლიფტინგის ვექტორებს ვნიშნავთ. |
-| 26.0–31.6 | Threads placed along the vectors, compartments lift, fade to after | Barbed NAMICA threads follow these vectors and lift the compartments back into place. | NAMICA-ს ბარბებიანი ძაფები ამ ვექტორებს მიჰყვება და კომპარტმენტებს ადგილზე აბრუნებს. |
-| 31.6–38.0 | LIFTING / BIOSTIMULATION / HYDRATION | One thread, three effects: an instant lift, new collagen, and hyaluronic acid that hydrates the skin. | ერთი ძაფი — სამი ეფექტი: მყისიერი ლიფტინგი, ახალი კოლაგენი და ჰიალურონის მჟავა, რომელიც კანს ატენიანებს. |
-| 38.0–45.0 | Before / after, your card | The result, right after the procedure. Book your consultation – link in bio. | ეს არის შედეგი პროცედურისთანავე. დაჯავშნე კონსულტაცია — ბმული ბიოშია. |
+| 26.0–33.1 | Threads placed along the vectors, compartments lift, fade to after, 1.5 s hold on the after photo | Barbed NAMICA threads follow these vectors and lift the compartments back into place. | NAMICA-ს ბარბებიანი ძაფები ამ ვექტორებს მიჰყვება და კომპარტმენტებს ადგილზე აბრუნებს. |
+| 33.1–39.5 | LIFTING / BIOSTIMULATION / HYDRATION | One thread, three effects: an instant lift, new collagen, and hyaluronic acid that hydrates the skin. | ერთი ძაფი — სამი ეფექტი: მყისიერი ლიფტინგი, ახალი კოლაგენი და ჰიალურონის მჟავა, რომელიც კანს ატენიანებს. |
+| 39.5–45.0 | Before / after, your card | The result, right after the procedure. Book your consultation – link in bio. | ეს არის შედეგი პროცედურისთანავე. დაჯავშნე კონსულტაცია — ბმული ბიოშია. |
 
 ## On-screen text (EN / KA)
 
