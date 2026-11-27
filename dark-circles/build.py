@@ -437,6 +437,7 @@ def render(base):
             print(f"frame {n}/{NF}", flush=True)
     enc.stdin.close()
     enc.wait()
+    dec.kill()          # base may hold a few frames past DUR; don't block on them
     dec.wait()
 
 
